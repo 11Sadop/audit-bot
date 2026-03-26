@@ -122,4 +122,8 @@ def handle_text(message):
 
 print("✅ تم تشغيل بوت المحقق والتحليل الشامل بنجاح...")
 if __name__ == "__main__":
+    try:
+        bot.remove_webhook()
+    except Exception as e:
+        pass
     bot.infinity_polling()

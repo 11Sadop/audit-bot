@@ -37,7 +37,8 @@ def get_main_menu():
         InlineKeyboardButton("🕵️ المحقق: كشف حسابات ยوزر (OSINT)", callback_data="osint"),
         InlineKeyboardButton("📉 فحص حظر الإكسبلور والشادوبان", callback_data="shadowban"),
         InlineKeyboardButton("🤖 فاحص المتابعين الوهميين", callback_data="fake_audit"),
-        InlineKeyboardButton("🔗 فحص الربط المخفي (قبل الشراء)", callback_data="hidden_links")
+        InlineKeyboardButton("🔗 فحص الربط المخفي (قبل الشراء)", callback_data="hidden_links"),
+        InlineKeyboardButton("💬 كاشف التعليقات الوهمية (Spam)", callback_data="comment_spam")
     )
     return markup
 
@@ -76,13 +77,17 @@ def callback_handler(call):
     elif call.data == "hidden_links":
         user_states[user_id] = "WAIT_HIDDEN_LINKS"
         bot.edit_message_text("🔗 أرسل اليوزر (Username) لفحص قيود الربط المخفي (أبل، جوجل، فيسبوك) ومخاطر استرجاع الحساب:", call.message.chat.id, msg_id)
+
+    elif call.data == "comment_spam":
+        user_states[user_id] = "WAIT_COMMENT_SPAM"
+        bot.edit_message_text("💬 أرسل رابط أقوى فيديو في الحساب لفحص الذكاء الاصطناعي للتعليقات وكشف (قروبات الدعم الوهمي) والمجاملات:", call.message.chat.id, msg_id)
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
     user_id = message.from_user.id
     target = message.text.strip()
     state = user_states.get(user_id, "IDLE")
     
-    if state in ["WAIT_OSINT", "WAIT_SHADOWBAN", "WAIT_FAKE_AUDIT", "WAIT_HIDDEN_LINKS"]:
+    if state in ["WAIT_OSINT", "WAIT_SHADOWBAN", "WAIT_FAKE_AUDIT", "WAIT_HIDDEN_LINKS", "WAIT_COMMENT_SPAM"]:
         loading_msg = bot.send_message(user_id, "⏳ جاري الاتصال بقواعد البيانات وتحليل الخوارزميات... (قد يستغرق 10 ثواني)")
         
         try:
@@ -94,6 +99,8 @@ def handle_text(message):
                 report = audit_tools.fake_followers_audit("منصات التواصل", target)
             elif state == "WAIT_HIDDEN_LINKS":
                 report = audit_tools.hidden_links_check(target.replace('@', ''))
+            elif state == "WAIT_COMMENT_SPAM":
+                report = audit_tools.comment_spam_check(target)
                 
             bot.edit_message_text(report, user_id, loading_msg.message_id, parse_mode="Markdown")
             

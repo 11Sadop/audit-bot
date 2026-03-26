@@ -5,6 +5,7 @@ import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import database
 import audit_tools
+import downloader
 
 class DummyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -38,7 +39,8 @@ def get_main_menu():
         InlineKeyboardButton("📉 فحص حظر الإكسبلور والشادوبان", callback_data="shadowban"),
         InlineKeyboardButton("🤖 فاحص المتابعين الوهميين", callback_data="fake_audit"),
         InlineKeyboardButton("🔗 فحص الربط المخفي (قبل الشراء)", callback_data="hidden_links"),
-        InlineKeyboardButton("💬 كاشف التعليقات الوهمية (Spam)", callback_data="comment_spam")
+        InlineKeyboardButton("💬 كاشف التعليقات الوهمية (Spam)", callback_data="comment_spam"),
+        InlineKeyboardButton("📥 تحميل فيديو (بدون حقوق)", callback_data="download_video")
     )
     return markup
 
@@ -81,6 +83,10 @@ def callback_handler(call):
     elif call.data == "comment_spam":
         user_states[user_id] = "WAIT_COMMENT_SPAM"
         bot.edit_message_text("💬 أرسل رابط أقوى فيديو في الحساب لفحص الذكاء الاصطناعي للتعليقات وكشف (قروبات الدعم الوهمي) والمجاملات:", call.message.chat.id, msg_id)
+        
+    elif call.data == "download_video":
+        user_states[user_id] = "WAIT_VIDEO_DL"
+        bot.edit_message_text("📥 أرسل لي رابط الفيديو من (تيك توك، انستقرام، تويتر، يوتيوب Shorts):\nوسأقوم بتحميله لك بدون حقوق أو علامة مائية:", call.message.chat.id, msg_id)
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
     user_id = message.from_user.id
@@ -109,6 +115,26 @@ def handle_text(message):
             
         user_states[user_id] = "IDLE"
         bot.send_message(user_id, "هل تريد إجراء فحص آخر؟", reply_markup=get_main_menu())
+        return
+
+    if state == "WAIT_VIDEO_DL":
+        loading_msg = bot.send_message(user_id, "⏳ جاري استخراج الفيديو الأصلي بدون علامة مائية... الرجاء الانتظار دقيقة.")
+        
+        try:
+            video_path = downloader.download_video_no_watermark(target)
+            if video_path:
+                with open(video_path, 'rb') as video_file:
+                    bot.send_video(user_id, video_file, caption="✅ تم التحميل بالدقة الأصلية وبدون حقوق!\n@YourBotUsername")
+                os.remove(video_path)
+                bot.delete_message(user_id, loading_msg.message_id)
+            else:
+                bot.edit_message_text("❌ عذراً، لم أتمكن من تحميل هذا الرابط. قد يكون الحساب خاصاً أو الرابط غير مدعوم.", user_id, loading_msg.message_id)
+        except Exception as e:
+            bot.edit_message_text(f"❌ حدث خطأ أثناء التحميل: {e}", user_id, loading_msg.message_id)
+            
+        user_states[user_id] = "IDLE"
+        bot.send_message(user_id, "هل تريد خدمة أخرى؟", reply_markup=get_main_menu())
+        return
 
 print("✅ تم تشغيل بوت المحقق والتحليل الشامل بنجاح...")
 if __name__ == "__main__":

@@ -60,8 +60,17 @@ def callback_handler(call):
     user_id = call.from_user.id
     msg_id = call.message.message_id
     
+    if call.data == "osint":
+        user_states[user_id] = "WAIT_OSINT"
+        bot.edit_message_text("🕵️ أرسل اليوزر (Username) الذي تريد كشف حساباته في المواقع الأخرى:\nمثال: @elonmusk", call.message.chat.id, msg_id)
+        
+    elif call.data == "shadowban":
+        user_states[user_id] = "WAIT_SHADOWBAN"
+        bot.edit_message_text("📉 أرسل رابط حساب التيك توك أو تويتر لتحليل حظر الإكسبلور والشادوبان:", call.message.chat.id, msg_id)
+        
+    elif call.data == "fake_audit":
+        user_states[user_id] = "WAIT_FAKE_AUDIT"
         bot.edit_message_text("🤖 أرسل يوزر المشهور أو المتجر لفحص نسبة المتابعين الوهميين ومدى مصداقيته:", call.message.chat.id, msg_id)
-
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
     user_id = message.from_user.id

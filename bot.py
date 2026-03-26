@@ -36,7 +36,8 @@ def get_main_menu():
     markup.add(
         InlineKeyboardButton("🕵️ المحقق: كشف حسابات ยوزر (OSINT)", callback_data="osint"),
         InlineKeyboardButton("📉 فحص حظر الإكسبلور والشادوبان", callback_data="shadowban"),
-        InlineKeyboardButton("🤖 فاحص المتابعين الوهميين", callback_data="fake_audit")
+        InlineKeyboardButton("🤖 فاحص المتابعين الوهميين", callback_data="fake_audit"),
+        InlineKeyboardButton("🔗 فحص الربط المخفي (قبل الشراء)", callback_data="hidden_links")
     )
     return markup
 
@@ -71,13 +72,17 @@ def callback_handler(call):
     elif call.data == "fake_audit":
         user_states[user_id] = "WAIT_FAKE_AUDIT"
         bot.edit_message_text("🤖 أرسل يوزر المشهور أو المتجر لفحص نسبة المتابعين الوهميين ومدى مصداقيته:", call.message.chat.id, msg_id)
+        
+    elif call.data == "hidden_links":
+        user_states[user_id] = "WAIT_HIDDEN_LINKS"
+        bot.edit_message_text("🔗 أرسل اليوزر (Username) لفحص قيود الربط المخفي (أبل، جوجل، فيسبوك) ومخاطر استرجاع الحساب:", call.message.chat.id, msg_id)
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
     user_id = message.from_user.id
     target = message.text.strip()
     state = user_states.get(user_id, "IDLE")
     
-    if state in ["WAIT_OSINT", "WAIT_SHADOWBAN", "WAIT_FAKE_AUDIT"]:
+    if state in ["WAIT_OSINT", "WAIT_SHADOWBAN", "WAIT_FAKE_AUDIT", "WAIT_HIDDEN_LINKS"]:
         loading_msg = bot.send_message(user_id, "⏳ جاري الاتصال بقواعد البيانات وتحليل الخوارزميات... (قد يستغرق 10 ثواني)")
         
         try:
@@ -87,6 +92,8 @@ def handle_text(message):
                 report = audit_tools.shadowban_check("TikTok / Twitter", target)
             elif state == "WAIT_FAKE_AUDIT":
                 report = audit_tools.fake_followers_audit("منصات التواصل", target)
+            elif state == "WAIT_HIDDEN_LINKS":
+                report = audit_tools.hidden_links_check(target.replace('@', ''))
                 
             bot.edit_message_text(report, user_id, loading_msg.message_id, parse_mode="Markdown")
             

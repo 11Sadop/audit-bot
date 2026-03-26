@@ -40,7 +40,8 @@ def get_main_menu():
         InlineKeyboardButton("🤖 فاحص المتابعين الوهميين", callback_data="fake_audit"),
         InlineKeyboardButton("🔗 فحص الربط المخفي (قبل الشراء)", callback_data="hidden_links"),
         InlineKeyboardButton("💬 كاشف التعليقات الوهمية (Spam)", callback_data="comment_spam"),
-        InlineKeyboardButton("📥 تحميل فيديو (بدون حقوق)", callback_data="download_video")
+        InlineKeyboardButton("📥 تحميل فيديو (بدون حقوق)", callback_data="download_video"),
+        InlineKeyboardButton("🔇 تحميل فيديو (بدون موسيقى)", callback_data="download_video_no_music")
     )
     return markup
 
@@ -74,7 +75,7 @@ def callback_handler(call):
         
     elif call.data == "fake_audit":
         user_states[user_id] = "WAIT_FAKE_AUDIT"
-        bot.edit_message_text("🤖 أرسل يوزر المشهور أو المتجر لفحص نسبة المتابعين الوهميين ومدى مصداقيته:", call.message.chat.id, msg_id)
+        bot.edit_message_text("🤖 أرسل عدد المتابعين وعدد الإعجابات (اللايكات) بالترتيب ومفصولين بمسافة للحساب الرياضي الدقيق:\nمثال: `100000 5000`", call.message.chat.id, msg_id, parse_mode="Markdown")
         
     elif call.data == "hidden_links":
         user_states[user_id] = "WAIT_HIDDEN_LINKS"
@@ -87,6 +88,10 @@ def callback_handler(call):
     elif call.data == "download_video":
         user_states[user_id] = "WAIT_VIDEO_DL"
         bot.edit_message_text("📥 أرسل لي رابط الفيديو من (تيك توك، انستقرام، تويتر، يوتيوب Shorts):\nوسأقوم بتحميله لك بدون حقوق أو علامة مائية:", call.message.chat.id, msg_id)
+
+    elif call.data == "download_video_no_music":
+        user_states[user_id] = "WAIT_VIDEO_NO_MUSIC"
+        bot.edit_message_text("🔇 أرسل الرابط هنا، وسأقوم بسحب الفيديو الأصلي وصقله (بدون موسيقى أو أغاني) تماماً لتتجنب الذنوب والمخالفات:", call.message.chat.id, msg_id)
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
     user_id = message.from_user.id
@@ -102,7 +107,11 @@ def handle_text(message):
             elif state == "WAIT_SHADOWBAN":
                 report = audit_tools.shadowban_check("TikTok / Twitter", target)
             elif state == "WAIT_FAKE_AUDIT":
-                report = audit_tools.fake_followers_audit("منصات التواصل", target)
+                parts = target.split()
+                if len(parts) >= 2:
+                    report = audit_tools.fake_followers_audit(parts[0], parts[1])
+                else:
+                    report = "❌ خطأ: يجب إرسال الرقمين مفصولين بمسافة (المتابعين ثم مسافة ثم اللايكات). مثال: `150000 5000`"
             elif state == "WAIT_HIDDEN_LINKS":
                 report = audit_tools.hidden_links_check(target.replace('@', ''))
             elif state == "WAIT_COMMENT_SPAM":
@@ -129,6 +138,25 @@ def handle_text(message):
                 bot.delete_message(user_id, loading_msg.message_id)
             else:
                 bot.edit_message_text("❌ عذراً، لم أتمكن من تحميل هذا الرابط. قد يكون الحساب خاصاً أو الرابط غير مدعوم.", user_id, loading_msg.message_id)
+        except Exception as e:
+            bot.edit_message_text(f"❌ حدث خطأ أثناء التحميل: {e}", user_id, loading_msg.message_id)
+            
+        user_states[user_id] = "IDLE"
+        bot.send_message(user_id, "هل تريد خدمة أخرى؟", reply_markup=get_main_menu())
+        return
+
+    if state == "WAIT_VIDEO_NO_MUSIC":
+        loading_msg = bot.send_message(user_id, "⏳ جاري استخراج الفيديو، وإزالة الموسيقى الأصلية تماماً... الرجاء الانتظار دقيقة.")
+        
+        try:
+            video_path = downloader.download_video_no_music(target)
+            if video_path:
+                with open(video_path, 'rb') as video_file:
+                    bot.send_video(user_id, video_file, caption="✅ تم التحميل (بدون موسيقى) وبدون حقوق!\n@YourBotUsername")
+                os.remove(video_path)
+                bot.delete_message(user_id, loading_msg.message_id)
+            else:
+                bot.edit_message_text("❌ عذراً، لم أتمكن من تحميل هذا الرابط. قد يكون الحساب خاصاً أو الرابط لا يدعم هذه الميزة.", user_id, loading_msg.message_id)
         except Exception as e:
             bot.edit_message_text(f"❌ حدث خطأ أثناء التحميل: {e}", user_id, loading_msg.message_id)
             

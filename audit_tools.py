@@ -39,6 +39,7 @@ def real_tiktok_info(username):
     following = stats.get('followingCount', 0)
     likes = stats.get('heart', 0)
     videos = stats.get('videoCount', 0)
+    digg = stats.get('diggCount', 0)
     
     report = f"📋 **البطاقة الاستخباراتية لحساب تيك توك (Live API Data)**\n\n"
     report += f"👤 **اليوزر:** `@{username}`\n"
@@ -50,7 +51,8 @@ def real_tiktok_info(username):
     
     report += f"📊 **الإحصائيات المباشرة (Live Stats):**\n"
     report += f"👥 المتابعون: **{followers:,}**\n"
-    report += f"❤️ الإعجابات: **{likes:,}**\n"
+    report += f"❤️ الإعجابات (المستلمة): **{likes:,}**\n"
+    report += f"👍 الإعجابات (التي وضعها لغيره): **{digg:,}**\n"
     report += f"👣 يتابع: **{following:,}**\n"
     report += f"🎬 عدد الفيديوهات: **{videos:,}**\n\n"
     
@@ -146,26 +148,5 @@ def hidden_links_check(username):
         f"🛡️ **تحذير أمني لمشتري الحسابات:**\n"
         f"الحسابات التي تمتلك (ربط مخفي) يمكن لصاحبها الأصلي استرجاعها بضغطة زر حتى لو قمت بتغيير الإيميل الأساسي وكلمة المرور!\n"
         f"يجب مطالبة البائع بفك جميع الارتباطات من الإعدادات الداخلية للتطبيق قبل نقل الملكية."
-    )
-    return report
-
-def comment_spam_check(target_url):
-    import random
-    spam_score = random.randint(40, 95)
-    if spam_score > 65:
-        result = "⚠️ فشل الأمان: التعليقات عبارة عن (قروبات دعم وهمي)!"
-        advice = "تعليقات الفيديو مبرمجة (إيموجيات متكررة، جمل قصيرة مثل 'استمر'). البائع يستخدم قروبات تبادل لتضخيم التعليقات."
-    else:
-        result = "✅ نجاح: التعليقات نقية والمجتمع حقيقي."
-        advice = "تم رصد نقاشات حقيقية وطبيعية بين المتابعين. التفاعل سليم."
-        
-    report = (
-        f"💬 **تقرير فحص التعليقات وقروبات الدعم (Spam Checker)**\n"
-        f"🔗 الرابط المستهدف: `{target_url}`\n"
-        f"━━━━━━━━━━━━━━━━━━\n\n"
-        f"🤖 مؤشر التزييف والمجاملات: **{spam_score}%**\n"
-        f"📊 **النتيجة:** {result}\n\n"
-        f"💡 **التحليل العميق في الخوارزمية:**\n"
-        f"{advice}"
     )
     return report

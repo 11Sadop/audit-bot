@@ -1,11 +1,12 @@
+import os
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import database
 import audit_tools
 
 # ----------------- الإعدادات الأساسية -----------------
-# ضع التوكن الخاص ببوتك هنا من BotFather
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
+# التوكن يتم سحبه تلقائياً من إعدادات سريفر (Render) للحماية
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 database.init_db()

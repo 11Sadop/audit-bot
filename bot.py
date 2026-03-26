@@ -39,7 +39,6 @@ def get_main_menu():
         InlineKeyboardButton("📉 فحص حظر الإكسبلور والشادوبان", callback_data="shadowban"),
         InlineKeyboardButton("🤖 فاحص المتابعين الوهميين (Live)", callback_data="fake_audit"),
         InlineKeyboardButton("🔗 فحص الربط المخفي (قبل الشراء)", callback_data="hidden_links"),
-        InlineKeyboardButton("💬 كاشف التعليقات الوهمية (Spam)", callback_data="comment_spam"),
         InlineKeyboardButton("📥 تحميل فيديو (بدون حقوق)", callback_data="download_video"),
         InlineKeyboardButton("🔇 تحميل فيديو (بدون موسيقى)", callback_data="download_video_no_music")
     )
@@ -81,10 +80,6 @@ def callback_handler(call):
         user_states[user_id] = "WAIT_HIDDEN_LINKS"
         bot.edit_message_text("🔗 أرسل اليوزر (Username) لفحص قيود الربط المخفي (أبل، جوجل، فيسبوك) ومخاطر استرجاع الحساب:", call.message.chat.id, msg_id)
 
-    elif call.data == "comment_spam":
-        user_states[user_id] = "WAIT_COMMENT_SPAM"
-        bot.edit_message_text("💬 أرسل رابط أقوى فيديو في الحساب لفحص الذكاء الاصطناعي للتعليقات وكشف (قروبات الدعم الوهمي) والمجاملات:", call.message.chat.id, msg_id)
-        
     elif call.data == "download_video":
         user_states[user_id] = "WAIT_VIDEO_DL"
         bot.edit_message_text("📥 أرسل لي رابط الفيديو من (تيك توك، انستقرام، تويتر، يوتيوب Shorts):\nوسأقوم بتحميله لك بدون حقوق أو علامة مائية:", call.message.chat.id, msg_id)
@@ -98,7 +93,7 @@ def handle_text(message):
     target = message.text.strip()
     state = user_states.get(user_id, "IDLE")
     
-    if state in ["WAIT_OSINT", "WAIT_SHADOWBAN", "WAIT_FAKE_AUDIT", "WAIT_HIDDEN_LINKS", "WAIT_COMMENT_SPAM"]:
+    if state in ["WAIT_OSINT", "WAIT_SHADOWBAN", "WAIT_FAKE_AUDIT", "WAIT_HIDDEN_LINKS"]:
         loading_msg = bot.send_message(user_id, "⏳ جاري الاتصال بقواعد البيانات وتحليل الخوارزميات... (قد يستغرق 10 ثواني)")
         
         try:
@@ -110,8 +105,6 @@ def handle_text(message):
                 report = audit_tools.real_fake_followers_audit(target.replace('@', '').strip())
             elif state == "WAIT_HIDDEN_LINKS":
                 report = audit_tools.hidden_links_check(target.replace('@', ''))
-            elif state == "WAIT_COMMENT_SPAM":
-                report = audit_tools.comment_spam_check(target)
                 
             bot.edit_message_text(report, user_id, loading_msg.message_id, parse_mode="Markdown")
             

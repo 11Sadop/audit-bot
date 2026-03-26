@@ -35,9 +35,9 @@ def get_main_menu():
     markup = InlineKeyboardMarkup()
     markup.row_width = 1
     markup.add(
-        InlineKeyboardButton("🕵️ المحقق: كشف حسابات ยوزر (OSINT)", callback_data="osint"),
+        InlineKeyboardButton("📋 استخبارات وتفاصيل حساب تيك توك (حقيقي)", callback_data="osint"),
         InlineKeyboardButton("📉 فحص حظر الإكسبلور والشادوبان", callback_data="shadowban"),
-        InlineKeyboardButton("🤖 فاحص المتابعين الوهميين", callback_data="fake_audit"),
+        InlineKeyboardButton("🤖 فاحص المتابعين الوهميين (Live)", callback_data="fake_audit"),
         InlineKeyboardButton("🔗 فحص الربط المخفي (قبل الشراء)", callback_data="hidden_links"),
         InlineKeyboardButton("💬 كاشف التعليقات الوهمية (Spam)", callback_data="comment_spam"),
         InlineKeyboardButton("📥 تحميل فيديو (بدون حقوق)", callback_data="download_video"),
@@ -75,7 +75,7 @@ def callback_handler(call):
         
     elif call.data == "fake_audit":
         user_states[user_id] = "WAIT_FAKE_AUDIT"
-        bot.edit_message_text("🤖 أرسل عدد المتابعين وعدد الإعجابات (اللايكات) بالترتيب ومفصولين بمسافة للحساب الرياضي الدقيق:\nمثال: `100000 5000`", call.message.chat.id, msg_id, parse_mode="Markdown")
+        bot.edit_message_text("🤖 أرسل اليوزر الخاص بحساب تيك توك (بدون @) لأسحب إحصائياته الحقيقية وأفحص نسبة المتابعين الوهميين بدقة:", call.message.chat.id, msg_id, parse_mode="Markdown")
         
     elif call.data == "hidden_links":
         user_states[user_id] = "WAIT_HIDDEN_LINKS"
@@ -103,15 +103,11 @@ def handle_text(message):
         
         try:
             if state == "WAIT_OSINT":
-                report = audit_tools.osint_search(target.replace('@', ''))
+                report = audit_tools.real_tiktok_info(target.replace('@', '').strip())
             elif state == "WAIT_SHADOWBAN":
                 report = audit_tools.shadowban_check("TikTok / Twitter", target)
             elif state == "WAIT_FAKE_AUDIT":
-                parts = target.split()
-                if len(parts) >= 2:
-                    report = audit_tools.fake_followers_audit(parts[0], parts[1])
-                else:
-                    report = "❌ خطأ: يجب إرسال الرقمين مفصولين بمسافة (المتابعين ثم مسافة ثم اللايكات). مثال: `150000 5000`"
+                report = audit_tools.real_fake_followers_audit(target.replace('@', '').strip())
             elif state == "WAIT_HIDDEN_LINKS":
                 report = audit_tools.hidden_links_check(target.replace('@', ''))
             elif state == "WAIT_COMMENT_SPAM":

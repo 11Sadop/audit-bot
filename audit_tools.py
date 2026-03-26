@@ -8,31 +8,55 @@ import time
 # في المستقبل، يمكنك استبدال هذه بـ API حقيقي من (Modash أو HypeAuditor) إذا أردت دقة 100%.
 # -------------------------------------------------------------
 
-def osint_search(username):
-    # محاكاة لعمليات الاستخبارات المفتوحة (OSINT)
-    time.sleep(2) # تأخير بسيط لمحاكاة الفحص العميق
+import requests
+
+def get_tiktok_data(username):
+    url = f"https://www.tikwm.com/api/user/info?unique_id={username}"
+    try:
+        res = requests.get(url, timeout=10).json()
+        if res.get('code') == 0:
+            return res.get('data')
+    except:
+        pass
+    return None
+
+def real_tiktok_info(username):
+    data = get_tiktok_data(username)
+    if not data:
+        return "❌ عذراً، لم أتمكن من جلب بيانات هذا الحساب. تأكد من صحة اليوزر (بدون @) أو أن الحساب غير محذوف."
     
-    platforms = ["Instagram", "Twitter / X", "TikTok", "Snapchat", "Telegram", "Pinterest", "Reddit", "Email Leak DB"]
-    found_in = random.sample(platforms, k=random.randint(2, 5))
+    user = data.get('user', {})
+    stats = data.get('stats', {})
     
-    # رسالة التقرير
-    report = f"🔍 **تقرير المحقق وكشف الحسابات (OSINT)**\n\n"
-    report += f"اليوزر المستهدف: `@{username}`\n"
-    report += f"نطاق البحث: تمت مطابقة اليوزر في 300+ قاعدة بيانات عالمية.\n\n"
+    uid = user.get('id', 'غير معروف')
+    nickname = user.get('nickname', 'غير معروف')
+    signature = user.get('signature', 'لا يوجد بايو').strip()
+    is_private = "🔒 نعم (حساب خاص)" if user.get('secret') else "🔓 لا (حساب عام)"
+    is_verified = "✅ نعم (موثق)" if user.get('verified') else "❌ لا"
+    region = user.get('region', 'غير محدد')
     
-    report += "🌐 **المنصات التي عُثر فيها على نفس اليوزر:**\n"
-    for p in found_in:
-        report += f"✅ متواجد في: {p}\n"
+    followers = stats.get('followerCount', 0)
+    following = stats.get('followingCount', 0)
+    likes = stats.get('heart', 0)
+    videos = stats.get('videoCount', 0)
     
-    # محاكاة إيميل مسرب
-    leak_chance = random.randint(1, 100)
-    if leak_chance > 40:
-        hidden_email = f"{username[:2]}***@gmail.com"
-        report += f"\n📧 **بريد إلكتروني محتمل مرتبط:** {hidden_email}\n"
-    else:
-        report += "\n🛡️ **البيانات الحساسة:** آمنة (لا يوجد تسريب صريح للإيميل)\n"
-        
-    report += "\n⚠️ *تنويه: بعض الحسابات قد تعود لأشخاص مختلفين يحملون نفس اليوزر في منصات أخرى.*"
+    report = f"📋 **البطاقة الاستخباراتية لحساب تيك توك (Live API Data)**\n\n"
+    report += f"👤 **اليوزر:** `@{username}`\n"
+    report += f"📝 **الاسم:** {nickname}\n"
+    report += f"🆔 **الآي دي (ID):** `{uid}`\n"
+    report += f"🌍 **المنطقة (Region):** {region}\n"
+    report += f"🔒 **حساب خاص؟:** {is_private}\n"
+    report += f"✅ **موثق؟:** {is_verified}\n\n"
+    
+    report += f"📊 **الإحصائيات المباشرة (Live Stats):**\n"
+    report += f"👥 المتابعون: **{followers:,}**\n"
+    report += f"❤️ الإعجابات: **{likes:,}**\n"
+    report += f"👣 يتابع: **{following:,}**\n"
+    report += f"🎬 عدد الفيديوهات: **{videos:,}**\n\n"
+    
+    if signature:
+        report += f"📜 **البايو (Bio):**\n{signature}\n"
+    
     return report
 
 def shadowban_check(platform, target):
@@ -65,44 +89,44 @@ def shadowban_check(platform, target):
         
     return report
 
-def fake_followers_audit(followers_str, likes_str):
-    time.sleep(1)
-    try:
-        followers = int(followers_str)
-        likes = int(likes_str)
+def real_fake_followers_audit(username):
+    data = get_tiktok_data(username)
+    if not data:
+        return "❌ عذراً، لم أتمكن من جلب بيانات هذا الحساب لفحصه."
         
-        if followers == 0:
-            return "❌ عدد المتابعين لا يمكن أن يكون صفر!"
-            
-        engagement_ratio = (likes / followers) * 100
+    followers = data.get('stats', {}).get('followerCount', 0)
+    likes = data.get('stats', {}).get('heart', 0)
+    
+    if followers == 0:
+        return f"❌ الحساب `@{username}` لا يملك أي متابعين لتقييمهم!"
         
-        report = f"🤖 **تقرير تدقيق المتابعين (الحساب الرياضي الدقيق)**\n\n"
-        report += f"👥 عدد المتابعين: **{followers:,}**\n"
-        report += f"❤️ إجمالي الإعجابات: **{likes:,}**\n"
-        report += f"📈 نسبة التفاعل الحقيقية: **{engagement_ratio:.2f}%**\n\n"
+    engagement_ratio = (likes / followers) * 100
+    
+    report = f"🤖 **تقرير تدقيق المتابعين المباشر (Live Fake Audit)**\n\n"
+    report += f"👤 الحساب: `@{username}`\n"
+    report += f"👥 عدد المتابعين الحالي: **{followers:,}**\n"
+    report += f"❤️ إجمالي الإعجابات الحالية: **{likes:,}**\n"
+    report += f"📈 نسبة التفاعل الحقيقية: **{engagement_ratio:.2f}%**\n\n"
+    
+    if engagement_ratio < 2.0:
+        fake_perc = 100 - (engagement_ratio * 10)
+        if fake_perc > 99: fake_perc = 99
+        real_perc = 100 - fake_perc
+        report += f"📊 **النتيجة الكارثية:**\n"
+        report += f"🟢 متابعون حقيقيون: {real_perc:.1f}%\n"
+        report += f"🔴 حسابات وهمية (رشق محتم): {fake_perc:.1f}%\n\n"
+        report += "🚨 **تحذير أمان عالي!**\nهذا الحساب عبارة عن (مقبرة أرقام)، وتفاعله معدوم تماماً. نسبة الرشق الوهمي خطيرة جداً!"
+    elif engagement_ratio < 10.0:
+        fake_perc = 50
+        real_perc = 50
+        report += f"📊 **نتيجة متوسطة:**\n"
+        report += f"🟢 حقيقيون: {real_perc}%\n"
+        report += f"🔴 وهمي أو خامل: {fake_perc}%\n\n"
+        report += "⚠️ الحساب يحتوي على نسبة خمول عالية جداً أو رشق قديم."
+    else:
+        report += "✅ **حساب موثوق وتفاعل ممتاز!**\n"
+        report += "جمهور هذا الحساب طبيعي جداً، والتفاعل يتوافق مع الخوارزميات الحية (لا يوجد رشق واضح)."
         
-        if engagement_ratio < 2.0:
-            fake_perc = 100 - (engagement_ratio * 10)
-            if fake_perc > 99: fake_perc = 99
-            real_perc = 100 - fake_perc
-            report += f"📊 **النتيجة الكارثية:**\n"
-            report += f"🟢 متابعون حقيقيون: {real_perc:.1f}%\n"
-            report += f"🔴 حسابات وهمية (رشق محتم): {fake_perc:.1f}%\n\n"
-            report += "🚨 **تحذير أمان عالي!**\nهذا الحساب عبارة عن (مقبرة أرقام)، وتفاعله معدوم تماماً مقارنة بحجمه. نسبة الرشق الوهمي فيه خطيرة جداً!"
-        elif engagement_ratio < 10.0:
-            fake_perc = 50
-            real_perc = 50
-            report += f"📊 **نتيجة متوسطة:**\n"
-            report += f"🟢 حقيقيون: {real_perc}%\n"
-            report += f"🔴 وهمي أو خامل: {fake_perc}%\n\n"
-            report += "⚠️ الحساب يحتوي على نسبة خمول عالية جداً أو رشق قديم."
-        else:
-            report += "✅ **حساب موثوق وتفاعل ممتاز!**\n"
-            report += "جمهور هذا الحساب طبيعي جداً، والتفاعل يتوافق مع الخوارزميات (لا يوجد رشق واضح)."
-            
-    except ValueError:
-        return "❌ الرجاء كتابة الأرقام بشكل صحيح (أرقام فقط بدون أحرف المليون والآلاف)."
-
     return report
 
 def hidden_links_check(username):

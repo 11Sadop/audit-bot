@@ -10,24 +10,21 @@ def get_connection():
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()
-    
-    # جدول إعدادات النظام (حالة البوت والمالك)
+
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS config (
         key TEXT PRIMARY KEY,
         value TEXT
     )
     ''')
-    
-    # جدول المشرفين
+
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS admins (
         tg_id INTEGER PRIMARY KEY,
         added_at INTEGER
     )
     ''')
-    
-    # جدول المشتركين والتعهد
+
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
         tg_id INTEGER PRIMARY KEY,
@@ -36,8 +33,7 @@ def init_db():
         joined_at INTEGER
     )
     ''')
-    
-    # جدول المزادات
+
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS auctions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,11 +46,11 @@ def init_db():
         current_price INTEGER,
         highest_bidder INTEGER,
         status TEXT DEFAULT 'active',
+        group_message_id INTEGER DEFAULT 0,
         created_at INTEGER
     )
     ''')
-    
-    # جدول المزايدات (السجل)
+
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS bids (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,11 +60,11 @@ def init_db():
         timestamp INTEGER
     )
     ''')
-    
+
     conn.commit()
     conn.close()
 
-# --- Config Methods ---
+# --- Config ---
 def get_config(key, default=None):
     conn = get_connection()
     cursor = conn.cursor()
@@ -84,7 +80,7 @@ def set_config(key, value):
     conn.commit()
     conn.close()
 
-# --- Admin & Users Methods ---
+# --- Admin & Users ---
 def is_admin(tg_id):
     owner_id = get_config("owner_id", "")
     if str(tg_id) == owner_id:
@@ -113,16 +109,13 @@ def remove_admin(tg_id):
 def ensure_user(tg_id, username):
     conn = get_connection()
     cursor = conn.cursor()
-    # Check if user exists
     cursor.execute("SELECT 1 FROM users WHERE tg_id = ?", (tg_id,))
     if not cursor.fetchone():
-        cursor.execute("INSERT INTO users (tg_id, username, pledged, joined_at) VALUES (?, ?, 0, ?)", 
+        cursor.execute("INSERT INTO users (tg_id, username, pledged, joined_at) VALUES (?, ?, 0, ?)",
                       (tg_id, username, int(time.time())))
-        conn.commit()
     else:
-        # Update username if changed
         cursor.execute("UPDATE users SET username = ? WHERE tg_id = ?", (username, tg_id))
-        conn.commit()
+    conn.commit()
     conn.close()
 
 def has_pledged(tg_id):
@@ -140,13 +133,13 @@ def set_pledged(tg_id):
     conn.commit()
     conn.close()
 
-# --- Auction Methods ---
+# --- Auctions ---
 def create_auction(title, desc, photo, currency, start_price, inc):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO auctions (title, description, photo_id, currency, start_price, min_increment, current_price, highest_bidder, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'active', ?)
+        INSERT INTO auctions (title, description, photo_id, currency, start_price, min_increment, current_price, highest_bidder, status, group_message_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'active', 0, ?)
     """, (title, desc, photo, currency, start_price, inc, start_price, int(time.time())))
     conn.commit()
     auction_id = cursor.lastrowid
@@ -174,9 +167,9 @@ def get_active_auctions():
 def place_bid(auction_id, tg_id, amount):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO bids (auction_id, tg_id, amount, timestamp) VALUES (?, ?, ?, ?)", 
+    cursor.execute("INSERT INTO bids (auction_id, tg_id, amount, timestamp) VALUES (?, ?, ?, ?)",
                    (auction_id, tg_id, amount, int(time.time())))
-    cursor.execute("UPDATE auctions SET current_price = ?, highest_bidder = ? WHERE id = ?", 
+    cursor.execute("UPDATE auctions SET current_price = ?, highest_bidder = ? WHERE id = ?",
                    (amount, tg_id, auction_id))
     conn.commit()
     conn.close()
@@ -188,13 +181,20 @@ def end_auction(auction_id):
     conn.commit()
     conn.close()
 
+def set_auction_group_msg(auction_id, message_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE auctions SET group_message_id = ? WHERE id = ?", (message_id, auction_id))
+    conn.commit()
+    conn.close()
+
 def get_username(tg_id):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT username FROM users WHERE tg_id = ?", (tg_id,))
     res = cursor.fetchone()
     conn.close()
-    return res[0] if res else "مجهول"
+    return res[0] if res else "\u0645\u062c\u0647\u0648\u0644"
 
-# تشغيل التهيئة عند تحميل الملف
+# Initialize on import
 init_db()

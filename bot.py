@@ -28,8 +28,7 @@ user_states = {}
 admin_auction_data = {}
 
 def cur(currency):
-          return "def cur(currency):
-    return "\u0631\u064a\u0627\u0644" if currency == "SAR" else "$"
+           "\u0631\u064a\u0627\u0644" if currency == "SAR" else "$"
 
 def build_auction_text(auction):
           c = cur(auction['currency'])

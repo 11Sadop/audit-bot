@@ -24,11 +24,14 @@ threading.Thread(target=run_dummy_server, daemon=True).start()
 # --- Bot Setup ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
-GROUP_ID = int(os.environ.get("GROUP_ID", "0"))
 bot = telebot.TeleBot(BOT_TOKEN)
 
 database.init_db()
 database.set_config("owner_id", str(OWNER_ID))
+
+def get_group_id():
+    val = database.get_config("group_id", "0")
+    return int(val) if val else 0
 
 # --- State Machine ---
 user_states = {}
@@ -95,6 +98,7 @@ def refresh_auction_in_group(auction_id):
     if not auction:
         return
     msg_id = auction.get('group_message_id')
+    GROUP_ID = get_group_id()
     if not msg_id or not GROUP_ID:
         return
     text = build_auction_text(auction)
@@ -113,7 +117,18 @@ def refresh_auction_in_group(auction_id):
     except Exception as e:
         print(f"Error updating group message: {e}")
 
-# ===== PRIVATE CHAT COMMANDS =====
+# ===== COMMANDS =====
+
+@bot.message_handler(commands=['setgroup'])
+def set_group_cmd(message):
+    if message.chat.type not in ['group', 'supergroup']:
+        bot.reply_to(message, "⛔ هذا الأمر يعمل في القروب فقط!")
+        return
+    if message.from_user.id != OWNER_ID:
+        bot.reply_to(message, "⛔ للمالك فقط!")
+        return
+    database.set_config("group_id", str(message.chat.id))
+    bot.reply_to(message, f"✅ تم تعيين هذا القروب للمزادات!\nآيدي القروب: `{message.chat.id}`", parse_mode="Markdown")
 
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
@@ -208,8 +223,8 @@ def create_auction_h(call):
     uid = call.from_user.id
     if not database.is_admin(uid):
         return
-    if GROUP_ID == 0:
-        bot.answer_callback_query(call.id, "\u26d4 \u0644\u0645 \u064a\u062a\u0645 \u062a\u0639\u064a\u064a\u0646 GROUP_ID!", show_alert=True)
+    if get_group_id() == 0:
+        bot.answer_callback_query(call.id, "⛔ أرسل /setgroup في القروب أولاً!", show_alert=True)
         return
     user_states[uid] = "AUC_TITLE"
     admin_auction_data[uid] = {}
@@ -429,9 +444,10 @@ def end_auction_h(call):
     )
 
     # Post result in group
-    if GROUP_ID:
+    gid = get_group_id()
+    if gid:
         try:
-            bot.send_message(GROUP_ID, result_text, parse_mode="Markdown")
+            bot.send_message(gid, result_text, parse_mode="Markdown")
         except:
             pass
 
@@ -564,7 +580,7 @@ def handle_all(message):
             min_req = auction['current_price'] + auction['min_increment']
             if amount < min_req:
                 c = cur(auction['currency'])
-                bot.send_message(uid, f"\u26a0\ufe0f \u064a\u062c\u0628 \u0623\u0639\u0644\u0649 \u0645\u0646 {min_req:,} {c}")
+                bot.send_message(uid, f"⚠️ يجب أعلى من {min_req:,} {c}")
                 return
             if auction['highest_bidder'] == uid:
                 bot.send_message(uid, "\u0623\u0646\u062a \u0627\u0644\u0623\u0639\u0644\u0649!")
@@ -599,16 +615,16 @@ def _publish_auction(uid):
     markup = build_bid_buttons(auction)
 
     # Send to GROUP
+    GROUP_ID = get_group_id()
     try:
         if data.get("photo_id"):
             sent = bot.send_photo(GROUP_ID, data["photo_id"], caption=text,
                                   reply_markup=markup, parse_mode="Markdown")
         else:
             sent = bot.send_message(GROUP_ID, text, reply_markup=markup, parse_mode="Markdown")
-        # Save group message ID for later updates
         database.set_auction_group_msg(auction_id, sent.message_id)
     except Exception as e:
-        bot.send_message(uid, f"\u274c \u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0644\u0644\u0642\u0631\u0648\u0628: {e}")
+        bot.send_message(uid, f"❌ خطأ: {e}")
         user_states[uid] = "IDLE"
         admin_auction_data.pop(uid, None)
         return

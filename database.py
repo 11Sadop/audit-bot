@@ -36,12 +36,30 @@ def init_db():
         status TEXT DEFAULT 'active',
         group_message_id INTEGER DEFAULT 0,
         request_id INTEGER DEFAULT 0,
+        scheduled_start_time INTEGER DEFAULT 0,
+        duration_minutes INTEGER DEFAULT 0,
+        end_time INTEGER DEFAULT 0,
         created_at INTEGER
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS bids (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         auction_id INTEGER, tg_id INTEGER, amount INTEGER, timestamp INTEGER
     )''')
+    
+    # Run migrations for existing tables
+    try:
+        c.execute("ALTER TABLE auctions ADD COLUMN scheduled_start_time INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE auctions ADD COLUMN duration_minutes INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE auctions ADD COLUMN end_time INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+
     conn.commit()
     conn.close()
 
@@ -122,6 +140,15 @@ def get_pending_requests():
     conn.close()
     return [dict(x) for x in r]
 
+def get_approved_requests():
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM auction_requests WHERE status = 'approved' ORDER BY id ASC")
+    r = c.fetchall()
+    conn.close()
+    return [dict(x) for x in r]
+
 def get_request(rid):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
@@ -135,6 +162,13 @@ def approve_request(rid):
     conn = get_connection()
     c = conn.cursor()
     c.execute("UPDATE auction_requests SET status = 'approved' WHERE id = ?", (rid,))
+    conn.commit()
+    conn.close()
+
+def mark_request_scheduled(rid):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE auction_requests SET status = 'scheduled' WHERE id = ?", (rid,))
     conn.commit()
     conn.close()
 
@@ -161,11 +195,12 @@ def get_pending_count():
     conn.close()
     return r[0] if r else 0
 
-def create_auction(title, desc, photo, currency, start_price, inc, seller_username, request_id=0):
+def create_auction(title, desc, photo, currency, start_price, inc, seller_username, request_id=0, sched_start=0, duration=0, status='active'):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("INSERT INTO auctions (title, description, photo_id, currency, start_price, min_increment, current_price, highest_bidder, seller_username, status, group_message_id, request_id, created_at) VALUES (?,?,?,?,?,?,?,0,?,'active',0,?,?)",
-        (title, desc, photo, currency, start_price, inc, start_price, seller_username, request_id, int(time.time())))
+    end_tm = sched_start + (duration * 60) if duration > 0 else 0
+    c.execute("INSERT INTO auctions (title, description, photo_id, currency, start_price, min_increment, current_price, highest_bidder, seller_username, status, group_message_id, request_id, scheduled_start_time, duration_minutes, end_time, created_at) VALUES (?,?,?,?,?,?,?,0,?,?,0,?,?,?,?,?)",
+        (title, desc, photo, currency, start_price, inc, start_price, seller_username, status, request_id, sched_start, duration, end_tm, int(time.time())))
     conn.commit()
     aid = c.lastrowid
     conn.close()
@@ -179,6 +214,22 @@ def get_auction(aid):
     r = c.fetchone()
     conn.close()
     return dict(r) if r else None
+
+def get_scheduled_auctions():
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM auctions WHERE status = 'scheduled' ORDER BY scheduled_start_time ASC")
+    r = c.fetchall()
+    conn.close()
+    return [dict(x) for x in r]
+
+def set_auction_active(aid, end_tm):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE auctions SET status = 'active', end_time = ? WHERE id = ?", (end_tm, aid))
+    conn.commit()
+    conn.close()
 
 def get_active_auctions():
     conn = get_connection()

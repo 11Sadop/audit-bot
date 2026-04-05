@@ -188,6 +188,14 @@ def set_auction_group_msg(auction_id, message_id):
     conn.commit()
     conn.close()
 
+def get_bid_count(auction_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM bids WHERE auction_id = ?", (auction_id,))
+    res = cursor.fetchone()
+    conn.close()
+    return res[0] if res else 0
+
 def get_username(tg_id):
     conn = get_connection()
     cursor = conn.cursor()

@@ -1,4 +1,4 @@
-import os
+    import os
 import threading
 import time
 import urllib.request
@@ -15,7 +15,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(b"OK")
 
     def log_message(self, f, *a):
-        pass
+                pass
 
 
 PORT = int(os.environ.get('PORT', 10000))
@@ -27,8 +27,8 @@ SERVICE_URL = os.environ.get("RENDER_EXTERNAL_URL", "")
 def keep_alive():
     while True:
         time.sleep(840)
-        if SERVICE_URL:
-            try:
+            if SERVICE_URL:
+                    try:
                 urllib.request.urlopen(SERVICE_URL)
             except Exception:
                 pass
@@ -101,26 +101,26 @@ def bid_btns(a):
 def refresh_grp(aid):
     a = database.get_auction(aid)
     if not a:
-        return
+                return
     mid = a.get('group_message_id')
     g = gid()
     if not mid or not g:
-        return
+                return
     try:
         if a.get('photo_id'):
             bot.edit_message_caption(caption=auc_text(a), chat_id=g, message_id=mid, reply_markup=bid_btns(a), parse_mode="Markdown")
         else:
             bot.edit_message_text(auc_text(a), g, mid, reply_markup=bid_btns(a), parse_mode="Markdown")
     except Exception:
-        pass
+                pass
 
 
 @bot.message_handler(commands=['setgroup'])
 def setgroup_cmd(msg):
     if msg.chat.type not in ['group', 'supergroup']:
-        return
+                return
     if msg.from_user.id != OWNER_ID:
-        return
+                return
     database.set_config("group_id", str(msg.chat.id))
     bot.reply_to(msg, "\u2705 \u062a\u0645 \u062a\u0639\u064a\u064a\u0646 \u0627\u0644\u0642\u0631\u0648\u0628!")
 
@@ -128,7 +128,7 @@ def setgroup_cmd(msg):
 @bot.message_handler(commands=['start'])
 def start_cmd(msg):
     if msg.chat.type != "private":
-        return
+                return
     uid = msg.from_user.id
     database.ensure_user(uid, msg.from_user.username or msg.from_user.first_name or "user")
     m = InlineKeyboardMarkup()
@@ -144,7 +144,7 @@ def start_cmd(msg):
 @bot.callback_query_handler(func=lambda c: c.data == "owner_panel")
 def owner_panel(call):
     if call.from_user.id != OWNER_ID:
-        return
+                return
     m = InlineKeyboardMarkup()
     m.row(InlineKeyboardButton("\u2795 \u0645\u0634\u0631\u0641", callback_data="add_admin"), InlineKeyboardButton("\u274c \u0637\u0631\u062f", callback_data="remove_admin"))
     m.row(InlineKeyboardButton("\u2795 \u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f", callback_data="create_auction"))
@@ -156,7 +156,7 @@ def owner_panel(call):
 @bot.callback_query_handler(func=lambda c: c.data == "admin_panel")
 def admin_panel(call):
     if not database.is_admin(call.from_user.id):
-        return
+                return
     m = InlineKeyboardMarkup()
     m.row(InlineKeyboardButton("\u2795 \u0645\u0632\u0627\u062f", callback_data="create_auction"))
     m.row(InlineKeyboardButton("\U0001f6d1 \u0625\u0646\u0647\u0627\u0621", callback_data="end_select"))
@@ -178,7 +178,7 @@ def go_home(call):
 @bot.callback_query_handler(func=lambda c: c.data == "add_admin")
 def add_admin_h(call):
     if call.from_user.id != OWNER_ID:
-        return
+            return
     user_states[call.from_user.id] = "WAIT_ADD_ADMIN"
     bot.edit_message_text("\U0001f46e \u0623\u0631\u0633\u0644 \u0622\u064a\u062f\u064a \u0627\u0644\u0645\u0634\u0631\u0641:", call.message.chat.id, call.message.message_id)
 
@@ -249,23 +249,23 @@ def handle_bid(call):
         try:
             bot.send_message(g, "\U0001f514 *\u0633\u0648\u0645\u0629 \u062c\u062f\u064a\u062f\u0629* | #" + str(aid) + " | *" + f"{np:,}" + " " + c + "* | " + name, parse_mode="Markdown")
         except Exception:
-            pass
+                    pass
     if prev and prev != 0 and prev != uid:
         try:
             bot.send_message(prev, "\U0001f514 \u062a\u0645 \u0643\u0633\u0631 \u0633\u0648\u0645\u062a\u0643 #" + str(aid) + " | \u0627\u0644\u062c\u062f\u064a\u062f: *" + f"{np:,}" + " " + c + "*", parse_mode="Markdown")
         except Exception:
-            pass
+                    pass
     # Send last 2 bids to owner
     last2 = database.get_last_bids(aid, 2)
     if last2:
-        txt = "\U0001f4cb *\u0622\u062e\u0631 \u0645\u0632\u0627\u064a\u062f\u0627\u062a #" + str(aid) + ":*\n"
-        for b in last2:
+            txt = "\U0001f4cb *\u0622\u062e\u0631 \u0645\u0632\u0627\u064a\u062f\u0627\u062a #" + str(aid) + ":*\n"
+            for b in last2:
             bname = database.get_username(b['tg_id'])
             txt += "\u2022 @" + bname + " : *" + f"{b['amount']:,}" + " " + c + "*\n"
         try:
             bot.send_message(OWNER_ID, txt, parse_mode="Markdown")
         except Exception:
-            pass
+                    pass
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("custombid_"))
@@ -278,11 +278,11 @@ def custom_bid_h(call):
     a = database.get_auction(aid)
     c = cur(a['currency'])
     mn = a['current_price'] + a['min_increment']
-    bot.answer_callback_query(call.id)
-    try:
+        bot.answer_callback_query(call.id)
+        try:
         bot.send_message(uid, "\u270d\ufe0f \u0627\u0643\u062a\u0628 \u0627\u0644\u0645\u0628\u0644\u063a (\u0623\u0639\u0644\u0649 \u0645\u0646 " + f"{mn:,}" + " " + c + "):")
-    except Exception:
-        pass
+        except Exception:
+                pass
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("end_"))
@@ -358,7 +358,7 @@ def skip_photo(call):
 
 @bot.message_handler(content_types=['text', 'photo'])
 def handle_all(msg):
-    uid = msg.from_user.id
+        uid = msg.from_user.id
     if msg.chat.type != "private":
         return
     st = user_states.get(uid, "IDLE")
@@ -400,7 +400,7 @@ def handle_all(msg):
             bot.send_message(uid, "\U0001f4c8 *\u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f* (5/6)\n\n\u0623\u0642\u0644 \u0632\u064a\u0627\u062f\u0629 (\u0645\u062b\u0627\u0644: 10):", parse_mode="Markdown")
         except Exception:
             bot.send_message(uid, "\u274c \u0623\u0631\u0633\u0644 \u0631\u0642\u0645!")
-        return
+            return
     if st == "AUC_INCREMENT" and database.is_admin(uid):
         try:
             auc_data[uid]["min_increment"] = int(msg.text.strip())
@@ -410,12 +410,12 @@ def handle_all(msg):
             bot.send_message(uid, "\U0001f4f8 *\u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f* (6/6)\n\n\u0635\u0648\u0631\u0629 \u0623\u0648 \u062a\u062e\u0637\u064a:", reply_markup=mk, parse_mode="Markdown")
         except Exception:
             bot.send_message(uid, "\u274c \u0623\u0631\u0633\u0644 \u0631\u0642\u0645!")
-        return
+            return
     if st == "AUC_PHOTO" and database.is_admin(uid):
         if msg.photo:
             auc_data[uid]["photo_id"] = msg.photo[-1].file_id
             publish(uid)
-        return
+            return
     if st.startswith("CUSTOM_BID_"):
         aid = int(st.split("_")[2])
         a = database.get_auction(aid)

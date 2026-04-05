@@ -1,4 +1,4 @@
-    import os
+import os
 import threading
 import time
 import urllib.request
@@ -13,9 +13,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"OK")
-
     def log_message(self, f, *a):
-                pass
+        pass
 
 
 PORT = int(os.environ.get('PORT', 10000))
@@ -23,16 +22,14 @@ threading.Thread(target=lambda: HTTPServer(('0.0.0.0', PORT), Handler).serve_for
 
 SERVICE_URL = os.environ.get("RENDER_EXTERNAL_URL", "")
 
-
 def keep_alive():
     while True:
         time.sleep(840)
-            if SERVICE_URL:
-                    try:
+        if SERVICE_URL:
+            try:
                 urllib.request.urlopen(SERVICE_URL)
             except Exception:
                 pass
-
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
@@ -44,6 +41,7 @@ database.set_config("owner_id", str(OWNER_ID))
 
 user_states = {}
 auc_data = {}
+req_data = {}
 
 
 def gid():
@@ -60,23 +58,25 @@ def auc_text(a):
     bn = "\u2014"
     count = database.get_bid_count(a['id'])
     if a['highest_bidder'] and a['highest_bidder'] != 0:
-        bn = database.get_username(a['highest_bidder'])
-        if len(bn) > 3:
-            bn = bn[:3] + ".."
+        un = database.get_username(a['highest_bidder'])
+        bn = "@" + un
     if a['status'] == 'active':
         st = "\U0001f7e2 \u0645\u0641\u062a\u0648\u062d"
     else:
         st = "\U0001f534 \u0645\u063a\u0644\u0642"
+    seller = a.get('seller_username', '')
     t = "\U0001f3af *\u0645\u0632\u0627\u062f #" + str(a['id']) + "*\n\n"
-    t += "\U0001f4e6 \u0627\u0644\u0633\u0644\u0639\u0629: *" + a['title'] + "*\n"
+    t = t + "\U0001f4e6 \u0627\u0644\u0633\u0644\u0639\u0629: *" + a['title'] + "*\n"
     if a.get('description'):
-        t += "\U0001f4c4 \u0627\u0644\u0648\u0635\u0641: " + a['description'] + "\n"
-    t += "\n\U0001f525 \u0623\u0639\u0644\u0649 \u0633\u0648\u0645\u0629: *" + f"{a['current_price']:,}" + " " + c + "*\n"
-    t += "\U0001f464 \u0635\u0627\u062d\u0628\u0647\u0627: *" + bn + "*\n"
-    t += "\U0001f4ca \u0627\u0644\u0633\u0648\u0645\u0627\u062a: *" + str(count) + "*\n"
-    t += "\U0001f4a1 \u0627\u0644\u062d\u0627\u0644\u0629: " + st + "\n"
+        t = t + "\U0001f4c4 \u0627\u0644\u0648\u0635\u0641: " + a['description'] + "\n"
+    if seller:
+        t = t + "\U0001f464 \u0627\u0644\u0628\u0627\u0626\u0639: @" + seller + "\n"
+    t = t + "\n\U0001f525 \u0623\u0639\u0644\u0649 \u0633\u0648\u0645\u0629: *" + "{:,}".format(a['current_price']) + " " + c + "*\n"
+    t = t + "\U0001f464 \u0635\u0627\u062d\u0628\u0647\u0627: " + bn + "\n"
+    t = t + "\U0001f4ca \u0627\u0644\u0633\u0648\u0645\u0627\u062a: *" + str(count) + "*\n"
+    t = t + "\U0001f4a1 \u0627\u0644\u062d\u0627\u0644\u0629: " + st + "\n"
     if a['status'] == 'active':
-        t += "\n\u26a0\ufe0f \u0628\u0627\u0644\u0636\u063a\u0637 = \u062a\u0639\u0647\u062f \u0628\u0627\u0644\u062f\u0641\u0639"
+        t = t + "\n\u26a0\ufe0f \u0628\u0627\u0644\u0636\u063a\u0637 = \u062a\u0639\u0647\u062f \u0628\u0627\u0644\u062f\u0641\u0639"
     return t
 
 
@@ -87,12 +87,12 @@ def bid_btns(a):
     i = a['min_increment']
     d = a['id']
     m.row(
-        InlineKeyboardButton("+" + f"{i:,}", callback_data="bid_" + str(d) + "_" + str(i)),
-        InlineKeyboardButton("+" + f"{i*2:,}", callback_data="bid_" + str(d) + "_" + str(i*2))
+        InlineKeyboardButton("+" + "{:,}".format(i), callback_data="bid_" + str(d) + "_" + str(i)),
+        InlineKeyboardButton("+" + "{:,}".format(i*2), callback_data="bid_" + str(d) + "_" + str(i*2))
     )
     m.row(
-        InlineKeyboardButton("+" + f"{i*5:,}", callback_data="bid_" + str(d) + "_" + str(i*5)),
-        InlineKeyboardButton("+" + f"{i*10:,}", callback_data="bid_" + str(d) + "_" + str(i*10))
+        InlineKeyboardButton("+" + "{:,}".format(i*5), callback_data="bid_" + str(d) + "_" + str(i*5)),
+        InlineKeyboardButton("+" + "{:,}".format(i*10), callback_data="bid_" + str(d) + "_" + str(i*10))
     )
     m.row(InlineKeyboardButton("\u270d\ufe0f \u0645\u0628\u0644\u063a \u0645\u062e\u0635\u0635", callback_data="custombid_" + str(d)))
     return m
@@ -101,26 +101,28 @@ def bid_btns(a):
 def refresh_grp(aid):
     a = database.get_auction(aid)
     if not a:
-                return
+        return
     mid = a.get('group_message_id')
     g = gid()
     if not mid or not g:
-                return
+        return
     try:
         if a.get('photo_id'):
             bot.edit_message_caption(caption=auc_text(a), chat_id=g, message_id=mid, reply_markup=bid_btns(a), parse_mode="Markdown")
         else:
             bot.edit_message_text(auc_text(a), g, mid, reply_markup=bid_btns(a), parse_mode="Markdown")
     except Exception:
-                pass
+        pass
 
+
+# === COMMANDS ===
 
 @bot.message_handler(commands=['setgroup'])
 def setgroup_cmd(msg):
     if msg.chat.type not in ['group', 'supergroup']:
-                return
+        return
     if msg.from_user.id != OWNER_ID:
-                return
+        return
     database.set_config("group_id", str(msg.chat.id))
     bot.reply_to(msg, "\u2705 \u062a\u0645 \u062a\u0639\u064a\u064a\u0646 \u0627\u0644\u0642\u0631\u0648\u0628!")
 
@@ -128,27 +130,40 @@ def setgroup_cmd(msg):
 @bot.message_handler(commands=['start'])
 def start_cmd(msg):
     if msg.chat.type != "private":
-                return
+        return
     uid = msg.from_user.id
     database.ensure_user(uid, msg.from_user.username or msg.from_user.first_name or "user")
     m = InlineKeyboardMarkup()
+    m.row(InlineKeyboardButton("\U0001f4e6 \u0637\u0644\u0628 \u0645\u0632\u0627\u062f", callback_data="new_request"))
     if uid == OWNER_ID:
         m.row(InlineKeyboardButton("\U0001f451 \u0644\u0648\u062d\u0629 \u0627\u0644\u0645\u0627\u0644\u0643", callback_data="owner_panel"))
-        m.row(InlineKeyboardButton("\u2795 \u0625\u0646\u0634\u0627\u0621 \u0645\u0632\u0627\u062f", callback_data="create_auction"))
     elif database.is_admin(uid):
         m.row(InlineKeyboardButton("\u2699\ufe0f \u0644\u0648\u062d\u0629 \u0627\u0644\u0645\u0634\u0631\u0641", callback_data="admin_panel"))
-        m.row(InlineKeyboardButton("\u2795 \u0625\u0646\u0634\u0627\u0621 \u0645\u0632\u0627\u062f", callback_data="create_auction"))
-    bot.send_message(uid, "\U0001f3af *\u0628\u0648\u062a \u0627\u0644\u0645\u0632\u0627\u062f\u0627\u062a*\n\n\u0627\u0644\u0645\u0632\u0627\u062f\u0627\u062a \u062a\u0646\u0632\u0644 \u0641\u064a \u0627\u0644\u0642\u0631\u0648\u0628\n\u0632\u0627\u064a\u062f \u0628\u0636\u063a\u0637\u0629 \u0632\u0631", reply_markup=m, parse_mode="Markdown")
+    bot.send_message(uid, "\U0001f3af *\u0628\u0648\u062a \u0627\u0644\u0645\u0632\u0627\u062f\u0627\u062a*\n\n\u062a\u0642\u062f\u0631 \u062a\u0637\u0644\u0628 \u0645\u0632\u0627\u062f \u0644\u0633\u0644\u0639\u062a\u0643\n\u0648\u0628\u0639\u062f \u0627\u0644\u0642\u0628\u0648\u0644 \u064a\u0646\u0632\u0644 \u0628\u0627\u0644\u0642\u0631\u0648\u0628", reply_markup=m, parse_mode="Markdown")
 
+
+# === USER REQUEST FLOW ===
+
+@bot.callback_query_handler(func=lambda c: c.data == "new_request")
+def new_request(call):
+    uid = call.from_user.id
+    user_states[uid] = "REQ_TITLE"
+    req_data[uid] = {}
+    bot.edit_message_text("\U0001f4e6 *\u0637\u0644\u0628 \u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f*\n\n\u0627\u0644\u062e\u0637\u0648\u0629 1/6\n\u0627\u0643\u062a\u0628 \u0627\u0633\u0645 \u0627\u0644\u0633\u0644\u0639\u0629:", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+
+
+# === ADMIN PANELS ===
 
 @bot.callback_query_handler(func=lambda c: c.data == "owner_panel")
 def owner_panel(call):
     if call.from_user.id != OWNER_ID:
-                return
+        return
+    pending = database.get_pending_count()
     m = InlineKeyboardMarkup()
-    m.row(InlineKeyboardButton("\u2795 \u0645\u0634\u0631\u0641", callback_data="add_admin"), InlineKeyboardButton("\u274c \u0637\u0631\u062f", callback_data="remove_admin"))
-    m.row(InlineKeyboardButton("\u2795 \u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f", callback_data="create_auction"))
+    m.row(InlineKeyboardButton("\U0001f4cb \u0627\u0644\u0637\u0644\u0628\u0627\u062a (" + str(pending) + ")", callback_data="view_requests"))
+    m.row(InlineKeyboardButton("\u2795 \u0645\u0632\u0627\u062f \u0645\u0628\u0627\u0634\u0631", callback_data="create_auction"))
     m.row(InlineKeyboardButton("\U0001f6d1 \u0625\u0646\u0647\u0627\u0621 \u0645\u0632\u0627\u062f", callback_data="end_select"))
+    m.row(InlineKeyboardButton("\u2795 \u0645\u0634\u0631\u0641", callback_data="add_admin"), InlineKeyboardButton("\u274c \u0637\u0631\u062f", callback_data="remove_admin"))
     m.row(InlineKeyboardButton("\U0001f519", callback_data="go_home"))
     bot.edit_message_text("\U0001f451 *\u0644\u0648\u062d\u0629 \u0627\u0644\u0645\u0627\u0644\u0643*", call.message.chat.id, call.message.message_id, reply_markup=m, parse_mode="Markdown")
 
@@ -156,10 +171,12 @@ def owner_panel(call):
 @bot.callback_query_handler(func=lambda c: c.data == "admin_panel")
 def admin_panel(call):
     if not database.is_admin(call.from_user.id):
-                return
+        return
+    pending = database.get_pending_count()
     m = InlineKeyboardMarkup()
-    m.row(InlineKeyboardButton("\u2795 \u0645\u0632\u0627\u062f", callback_data="create_auction"))
-    m.row(InlineKeyboardButton("\U0001f6d1 \u0625\u0646\u0647\u0627\u0621", callback_data="end_select"))
+    m.row(InlineKeyboardButton("\U0001f4cb \u0627\u0644\u0637\u0644\u0628\u0627\u062a (" + str(pending) + ")", callback_data="view_requests"))
+    m.row(InlineKeyboardButton("\u2795 \u0645\u0632\u0627\u062f \u0645\u0628\u0627\u0634\u0631", callback_data="create_auction"))
+    m.row(InlineKeyboardButton("\U0001f6d1 \u0625\u0646\u0647\u0627\u0621 \u0645\u0632\u0627\u062f", callback_data="end_select"))
     m.row(InlineKeyboardButton("\U0001f519", callback_data="go_home"))
     bot.edit_message_text("\u2699\ufe0f *\u0644\u0648\u062d\u0629 \u0627\u0644\u0645\u0634\u0631\u0641*", call.message.chat.id, call.message.message_id, reply_markup=m, parse_mode="Markdown")
 
@@ -168,6 +185,7 @@ def admin_panel(call):
 def go_home(call):
     uid = call.from_user.id
     m = InlineKeyboardMarkup()
+    m.row(InlineKeyboardButton("\U0001f4e6 \u0637\u0644\u0628 \u0645\u0632\u0627\u062f", callback_data="new_request"))
     if uid == OWNER_ID:
         m.row(InlineKeyboardButton("\U0001f451 \u0644\u0648\u062d\u0629 \u0627\u0644\u0645\u0627\u0644\u0643", callback_data="owner_panel"))
     elif database.is_admin(uid):
@@ -175,10 +193,100 @@ def go_home(call):
     bot.edit_message_text("\U0001f3af *\u0628\u0648\u062a \u0627\u0644\u0645\u0632\u0627\u062f\u0627\u062a*", call.message.chat.id, call.message.message_id, reply_markup=m, parse_mode="Markdown")
 
 
+# === VIEW/APPROVE REQUESTS ===
+
+@bot.callback_query_handler(func=lambda c: c.data == "view_requests")
+def view_requests(call):
+    if not database.is_admin(call.from_user.id):
+        return
+    reqs = database.get_pending_requests()
+    if not reqs:
+        bot.answer_callback_query(call.id, "\u0644\u0627 \u0637\u0644\u0628\u0627\u062a!", show_alert=True)
+        return
+    m = InlineKeyboardMarkup()
+    for r in reqs:
+        lbl = "#" + str(r['id']) + " " + r['title'] + " (@" + r['seller_username'] + ")"
+        m.row(InlineKeyboardButton(lbl, callback_data="showreq_" + str(r['id'])))
+    m.row(InlineKeyboardButton("\U0001f519", callback_data="owner_panel"))
+    bot.edit_message_text("\U0001f4cb *\u0627\u0644\u0637\u0644\u0628\u0627\u062a \u0627\u0644\u0645\u0639\u0644\u0642\u0629:*", call.message.chat.id, call.message.message_id, reply_markup=m, parse_mode="Markdown")
+
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("showreq_"))
+def show_request(call):
+    if not database.is_admin(call.from_user.id):
+        return
+    rid = int(call.data.split("_")[1])
+    r = database.get_request(rid)
+    if not r:
+        return
+    c = cur(r['currency'])
+    t = "\U0001f4cb *\u0637\u0644\u0628 #" + str(r['id']) + "*\n\n"
+    t = t + "\U0001f4e6 \u0627\u0644\u0633\u0644\u0639\u0629: *" + r['title'] + "*\n"
+    if r['description']:
+        t = t + "\U0001f4c4 \u0627\u0644\u0648\u0635\u0641: " + r['description'] + "\n"
+    t = t + "\U0001f464 \u0627\u0644\u0628\u0627\u0626\u0639: @" + r['seller_username'] + "\n"
+    t = t + "\U0001f4b0 \u0627\u0644\u0628\u062f\u0627\u064a\u0629: " + "{:,}".format(r['start_price']) + " " + c + "\n"
+    t = t + "\U0001f4c8 \u0627\u0644\u0632\u064a\u0627\u062f\u0629: " + "{:,}".format(r['min_increment']) + " " + c + "\n"
+    t = t + "\U0001f464 \u0627\u0644\u0637\u0627\u0644\u0628: @" + r['requester_username'] + "\n"
+    mk = InlineKeyboardMarkup()
+    mk.row(
+        InlineKeyboardButton("\u2705 \u0642\u0628\u0648\u0644", callback_data="approve_" + str(rid)),
+        InlineKeyboardButton("\u274c \u0631\u0641\u0636", callback_data="reject_" + str(rid))
+    )
+    mk.row(InlineKeyboardButton("\U0001f519", callback_data="view_requests"))
+    bot.edit_message_text(t, call.message.chat.id, call.message.message_id, reply_markup=mk, parse_mode="Markdown")
+
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("approve_"))
+def approve_req(call):
+    if not database.is_admin(call.from_user.id):
+        return
+    rid = int(call.data.split("_")[1])
+    r = database.get_request(rid)
+    if not r:
+        return
+    database.approve_request(rid)
+    aid = database.create_auction(r['title'], r['description'], r['photo_id'], r['currency'], r['start_price'], r['min_increment'], r['seller_username'], rid)
+    a = database.get_auction(aid)
+    g = gid()
+    if g:
+        try:
+            if r['photo_id']:
+                sent = bot.send_photo(g, r['photo_id'], caption=auc_text(a), reply_markup=bid_btns(a), parse_mode="Markdown")
+            else:
+                sent = bot.send_message(g, auc_text(a), reply_markup=bid_btns(a), parse_mode="Markdown")
+            database.set_auction_group_msg(aid, sent.message_id)
+        except Exception:
+            pass
+    try:
+        bot.send_message(r['requester_id'], "\u2705 *\u062a\u0645 \u0642\u0628\u0648\u0644 \u0637\u0644\u0628\u0643!*\n\u0627\u0644\u0645\u0632\u0627\u062f #" + str(aid) + " \u0646\u0632\u0644 \u0641\u064a \u0627\u0644\u0642\u0631\u0648\u0628", parse_mode="Markdown")
+    except Exception:
+        pass
+    bot.edit_message_text("\u2705 \u062a\u0645 \u0642\u0628\u0648\u0644 \u0627\u0644\u0637\u0644\u0628 #" + str(rid) + " \u0648\u0646\u0634\u0631 \u0627\u0644\u0645\u0632\u0627\u062f #" + str(aid), call.message.chat.id, call.message.message_id)
+
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("reject_"))
+def reject_req(call):
+    if not database.is_admin(call.from_user.id):
+        return
+    rid = int(call.data.split("_")[1])
+    r = database.get_request(rid)
+    if not r:
+        return
+    database.reject_request(rid)
+    try:
+        bot.send_message(r['requester_id'], "\u274c *\u062a\u0645 \u0631\u0641\u0636 \u0637\u0644\u0628\u0643 #" + str(rid) + "*", parse_mode="Markdown")
+    except Exception:
+        pass
+    bot.edit_message_text("\u274c \u062a\u0645 \u0631\u0641\u0636 \u0627\u0644\u0637\u0644\u0628 #" + str(rid), call.message.chat.id, call.message.message_id)
+
+
+# === ADMIN CONTROLS ===
+
 @bot.callback_query_handler(func=lambda c: c.data == "add_admin")
 def add_admin_h(call):
     if call.from_user.id != OWNER_ID:
-            return
+        return
     user_states[call.from_user.id] = "WAIT_ADD_ADMIN"
     bot.edit_message_text("\U0001f46e \u0623\u0631\u0633\u0644 \u0622\u064a\u062f\u064a \u0627\u0644\u0645\u0634\u0631\u0641:", call.message.chat.id, call.message.message_id)
 
@@ -197,11 +305,11 @@ def create_auc(call):
     if not database.is_admin(uid):
         return
     if gid() == 0:
-        bot.answer_callback_query(call.id, "\u26d4 \u0623\u0631\u0633\u0644 /setgroup \u0641\u064a \u0627\u0644\u0642\u0631\u0648\u0628 \u0623\u0648\u0644\u0627!", show_alert=True)
+        bot.answer_callback_query(call.id, "\u26d4 \u0623\u0631\u0633\u0644 /setgroup \u0641\u064a \u0627\u0644\u0642\u0631\u0648\u0628!", show_alert=True)
         return
     user_states[uid] = "AUC_TITLE"
     auc_data[uid] = {}
-    bot.edit_message_text("\U0001f4e6 *\u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f* (1/6)\n\n\u0623\u0631\u0633\u0644 \u0627\u0633\u0645 \u0627\u0644\u0633\u0644\u0639\u0629:", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.edit_message_text("\U0001f4e6 *\u0645\u0632\u0627\u062f \u0645\u0628\u0627\u0634\u0631* (1/7)\n\n\u0627\u0633\u0645 \u0627\u0644\u0633\u0644\u0639\u0629:", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
 
 @bot.callback_query_handler(func=lambda c: c.data == "end_select")
@@ -215,11 +323,12 @@ def end_select(call):
     m = InlineKeyboardMarkup()
     for a in aucs:
         c = cur(a['currency'])
-        lbl = "#" + str(a['id']) + " " + a['title'] + " (" + f"{a['current_price']:,}" + " " + c + ")"
-        m.row(InlineKeyboardButton(lbl, callback_data="end_" + str(a['id'])))
-    m.row(InlineKeyboardButton("\U0001f519", callback_data="go_home"))
-    bot.edit_message_text("\U0001f6d1 *\u0627\u062e\u062a\u0631 \u0627\u0644\u0645\u0632\u0627\u062f:*", call.message.chat.id, call.message.message_id, reply_markup=m, parse_mode="Markdown")
+        m.row(InlineKeyboardButton("#" + str(a['id']) + " " + a['title'] + " (" + "{:,}".format(a['current_price']) + " " + c + ")", callback_data="end_" + str(a['id'])))
+    m.row(InlineKeyboardButton("\U0001f519", callback_data="owner_panel"))
+    bot.edit_message_text("\U0001f6d1 *\u0627\u062e\u062a\u0631:*", call.message.chat.id, call.message.message_id, reply_markup=m, parse_mode="Markdown")
 
+
+# === BIDDING ===
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("bid_"))
 def handle_bid(call):
@@ -234,38 +343,30 @@ def handle_bid(call):
         bot.answer_callback_query(call.id, "\u26d4 \u0645\u063a\u0644\u0642!", show_alert=True)
         return
     if a['highest_bidder'] == uid:
-        bot.answer_callback_query(call.id, "\u26a0\ufe0f \u0623\u0646\u062a \u0635\u0627\u062d\u0628 \u0623\u0639\u0644\u0649 \u0633\u0648\u0645\u0629!", show_alert=True)
+        bot.answer_callback_query(call.id, "\u26a0\ufe0f \u0623\u0646\u062a \u0627\u0644\u0623\u0639\u0644\u0649!", show_alert=True)
         return
     np = a['current_price'] + ba
     c = cur(a['currency'])
     prev = a['highest_bidder']
     database.set_pledged(uid)
     database.place_bid(aid, uid, np)
-    bot.answer_callback_query(call.id, "\u2705 \u062a\u0645! \u0633\u0648\u0645\u062a\u0643: " + f"{np:,}" + " " + c, show_alert=True)
+    bot.answer_callback_query(call.id, "\u2705 \u062a\u0645! \u0633\u0648\u0645\u062a\u0643: " + "{:,}".format(np) + " " + c, show_alert=True)
     refresh_grp(aid)
-    g = gid()
-    if g:
-        name = un if len(un) <= 3 else un[:3] + ".."
-        try:
-            bot.send_message(g, "\U0001f514 *\u0633\u0648\u0645\u0629 \u062c\u062f\u064a\u062f\u0629* | #" + str(aid) + " | *" + f"{np:,}" + " " + c + "* | " + name, parse_mode="Markdown")
-        except Exception:
-                    pass
     if prev and prev != 0 and prev != uid:
         try:
-            bot.send_message(prev, "\U0001f514 \u062a\u0645 \u0643\u0633\u0631 \u0633\u0648\u0645\u062a\u0643 #" + str(aid) + " | \u0627\u0644\u062c\u062f\u064a\u062f: *" + f"{np:,}" + " " + c + "*", parse_mode="Markdown")
+            bot.send_message(prev, "\U0001f514 \u062a\u0645 \u0643\u0633\u0631 \u0633\u0648\u0645\u062a\u0643 #" + str(aid) + " | \u0627\u0644\u062c\u062f\u064a\u062f: *" + "{:,}".format(np) + " " + c + "*", parse_mode="Markdown")
         except Exception:
-                    pass
-    # Send last 2 bids to owner
+            pass
     last2 = database.get_last_bids(aid, 2)
     if last2:
-            txt = "\U0001f4cb *\u0622\u062e\u0631 \u0645\u0632\u0627\u064a\u062f\u0627\u062a #" + str(aid) + ":*\n"
-            for b in last2:
+        txt = "\U0001f4cb *\u0645\u0632\u0627\u064a\u062f\u0627\u062a #" + str(aid) + ":*\n"
+        for b in last2:
             bname = database.get_username(b['tg_id'])
-            txt += "\u2022 @" + bname + " : *" + f"{b['amount']:,}" + " " + c + "*\n"
+            txt = txt + "\u2022 @" + bname + " : *" + "{:,}".format(b['amount']) + " " + c + "*\n"
         try:
             bot.send_message(OWNER_ID, txt, parse_mode="Markdown")
         except Exception:
-                    pass
+            pass
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("custombid_"))
@@ -278,12 +379,14 @@ def custom_bid_h(call):
     a = database.get_auction(aid)
     c = cur(a['currency'])
     mn = a['current_price'] + a['min_increment']
-        bot.answer_callback_query(call.id)
-        try:
-        bot.send_message(uid, "\u270d\ufe0f \u0627\u0643\u062a\u0628 \u0627\u0644\u0645\u0628\u0644\u063a (\u0623\u0639\u0644\u0649 \u0645\u0646 " + f"{mn:,}" + " " + c + "):")
-        except Exception:
-                pass
+    bot.answer_callback_query(call.id)
+    try:
+        bot.send_message(uid, "\u270d\ufe0f \u0627\u0643\u062a\u0628 \u0627\u0644\u0645\u0628\u0644\u063a (\u0623\u0639\u0644\u0649 \u0645\u0646 " + "{:,}".format(mn) + " " + c + "):")
+    except Exception:
+        pass
 
+
+# === END AUCTION ===
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("end_"))
 def end_auc(call):
@@ -302,37 +405,38 @@ def end_auc(call):
         winner_id = a['highest_bidder']
     count = database.get_bid_count(aid)
     last2 = database.get_last_bids(aid, 2)
-    # Group message
+    seller = a.get('seller_username', '')
     g = gid()
     if g:
         gt = "\U0001f534 *\u062a\u0645 \u0627\u0646\u062a\u0647\u0627\u0621 \u0627\u0644\u0645\u0632\u0627\u062f #" + str(aid) + "*\n\n"
-        gt += "\U0001f4e6 " + a['title'] + "\n"
-        gt += "\U0001f4b0 \u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0646\u0647\u0627\u0626\u064a: *" + f"{a['current_price']:,}" + " " + c + "*\n"
-        gt += "\U0001f4ca \u0627\u0644\u0633\u0648\u0645\u0627\u062a: " + str(count) + "\n"
-        gt += "\U0001f947 \u0627\u0644\u0641\u0627\u0626\u0632: *" + w + "*\n\n"
-        gt += "\U0001f389 \u0645\u0628\u0627\u0631\u0643 \u0644\u0644\u0645\u0634\u062a\u0631\u064a! \u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0628\u0627\u0626\u0639"
+        gt = gt + "\U0001f4e6 " + a['title'] + "\n"
+        gt = gt + "\U0001f4b0 \u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0646\u0647\u0627\u0626\u064a: *" + "{:,}".format(a['current_price']) + " " + c + "*\n"
+        gt = gt + "\U0001f4ca \u0627\u0644\u0633\u0648\u0645\u0627\u062a: " + str(count) + "\n"
+        gt = gt + "\U0001f947 \u0627\u0644\u0641\u0627\u0626\u0632: *" + w + "*\n"
+        if seller:
+            gt = gt + "\n\U0001f4de \u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0628\u0627\u0626\u0639 @" + seller
         try:
             bot.send_message(g, gt, parse_mode="Markdown")
         except Exception:
             pass
     refresh_grp(aid)
-    # Winner message
     if winner_id:
         try:
-            bot.send_message(winner_id, "\U0001f389 *\u0645\u0628\u0627\u0631\u0643!*\n\u0631\u0633\u0649 \u0639\u0644\u064a\u0643 \u0627\u0644\u0645\u0632\u0627\u062f #" + str(aid) + "\n*" + f"{a['current_price']:,}" + " " + c + "*\n\n\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0628\u0627\u0626\u0639 \u0644\u0625\u062a\u0645\u0627\u0645 \u0627\u0644\u0635\u0641\u0642\u0629", parse_mode="Markdown")
+            wt = "\U0001f389 *\u0645\u0628\u0627\u0631\u0643!*\n\u0631\u0633\u0649 \u0639\u0644\u064a\u0643 #" + str(aid) + "\n*" + "{:,}".format(a['current_price']) + " " + c + "*\n"
+            if seller:
+                wt = wt + "\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0628\u0627\u0626\u0639: @" + seller
+            bot.send_message(winner_id, wt, parse_mode="Markdown")
         except Exception:
             pass
-    # Owner report
-    ot = "\U0001f4cb *\u062a\u0642\u0631\u064a\u0631 \u0627\u0644\u0645\u0632\u0627\u062f #" + str(aid) + "*\n\n"
-    ot += "\U0001f4e6 " + a['title'] + "\n"
-    ot += "\U0001f4b0 \u0627\u0644\u0646\u0647\u0627\u0626\u064a: *" + f"{a['current_price']:,}" + " " + c + "*\n"
-    ot += "\U0001f947 \u0627\u0644\u0641\u0627\u0626\u0632: *" + w + "*\n"
-    ot += "\U0001f4ca \u0627\u0644\u0633\u0648\u0645\u0627\u062a: " + str(count) + "\n\n"
+    ot = "\U0001f4cb *\u062a\u0642\u0631\u064a\u0631 #" + str(aid) + "*\n\n"
+    ot = ot + "\U0001f4e6 " + a['title'] + "\n"
+    ot = ot + "\U0001f4b0 " + "{:,}".format(a['current_price']) + " " + c + "\n"
+    ot = ot + "\U0001f947 " + w + "\n"
     if last2:
-        ot += "*\u0622\u062e\u0631 \u0645\u0632\u0627\u064a\u062f\u0627\u062a:*\n"
+        ot = ot + "\n*\u0622\u062e\u0631 \u0645\u0632\u0627\u064a\u062f\u0627\u062a:*\n"
         for b in last2:
             bname = database.get_username(b['tg_id'])
-            ot += "\u2022 @" + bname + " : *" + f"{b['amount']:,}" + " " + c + "*\n"
+            ot = ot + "\u2022 @" + bname + " : " + "{:,}".format(b['amount']) + " " + c + "\n"
     try:
         bot.send_message(OWNER_ID, ot, parse_mode="Markdown")
     except Exception:
@@ -340,82 +444,150 @@ def end_auc(call):
     bot.answer_callback_query(call.id, "\u2705 \u062a\u0645!")
 
 
+# === CURRENCY & PHOTO ===
+
 @bot.callback_query_handler(func=lambda c: c.data.startswith("cur_"))
 def cur_select(call):
     uid = call.from_user.id
     cy = call.data.split("_")[1]
-    auc_data[uid]["currency"] = cy
-    user_states[uid] = "AUC_START_PRICE"
-    c = cur(cy)
-    bot.edit_message_text("\U0001f4b0 *\u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f* (4/6)\n\n\u0633\u0639\u0631 \u0627\u0644\u0628\u062f\u0627\u064a\u0629 \u0628\u0627\u0644" + c + ":", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    st = user_states.get(uid, "")
+    if st.startswith("REQ_"):
+        req_data[uid]["currency"] = cy
+        user_states[uid] = "REQ_START_PRICE"
+        c = cur(cy)
+        bot.edit_message_text("\U0001f4b0 *\u0637\u0644\u0628 \u0645\u0632\u0627\u062f* (5/6)\n\n\u0633\u0639\u0631 \u0627\u0644\u0628\u062f\u0627\u064a\u0629 \u0628\u0627\u0644" + c + ":", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    else:
+        auc_data[uid]["currency"] = cy
+        user_states[uid] = "AUC_START_PRICE"
+        c = cur(cy)
+        bot.edit_message_text("\U0001f4b0 *\u0645\u0632\u0627\u062f* (5/7)\n\n\u0633\u0639\u0631 \u0627\u0644\u0628\u062f\u0627\u064a\u0629 \u0628\u0627\u0644" + c + ":", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
 
 @bot.callback_query_handler(func=lambda c: c.data == "skip_photo")
 def skip_photo(call):
-    auc_data[call.from_user.id]["photo_id"] = None
-    publish(call.from_user.id)
+    uid = call.from_user.id
+    st = user_states.get(uid, "")
+    if st.startswith("REQ_"):
+        req_data[uid]["photo_id"] = None
+        submit_request(uid)
+    else:
+        auc_data[uid]["photo_id"] = None
+        publish(uid)
 
+
+# === TEXT/PHOTO HANDLER ===
 
 @bot.message_handler(content_types=['text', 'photo'])
 def handle_all(msg):
-        uid = msg.from_user.id
+    uid = msg.from_user.id
     if msg.chat.type != "private":
         return
     st = user_states.get(uid, "IDLE")
+    # Admin add/remove
     if st == "WAIT_ADD_ADMIN" and uid == OWNER_ID:
         try:
             nid = int(msg.text.strip())
             database.add_admin(nid)
-            bot.send_message(uid, "\u2705 \u062a\u0645 \u0625\u0636\u0627\u0641\u0629 " + str(nid))
+            bot.send_message(uid, "\u2705 \u062a\u0645 " + str(nid))
         except Exception:
-            bot.send_message(uid, "\u274c \u0631\u0642\u0645 \u063a\u0644\u0637")
+            bot.send_message(uid, "\u274c \u062e\u0637\u0623")
         user_states[uid] = "IDLE"
         return
     if st == "WAIT_REMOVE_ADMIN" and uid == OWNER_ID:
         try:
             rid = int(msg.text.strip())
             database.remove_admin(rid)
-            bot.send_message(uid, "\u2705 \u062a\u0645 \u0637\u0631\u062f " + str(rid))
+            bot.send_message(uid, "\u2705 \u062a\u0645 " + str(rid))
         except Exception:
-            bot.send_message(uid, "\u274c \u0631\u0642\u0645 \u063a\u0644\u0637")
+            bot.send_message(uid, "\u274c \u062e\u0637\u0623")
         user_states[uid] = "IDLE"
         return
+    # User request flow
+    if st == "REQ_TITLE":
+        req_data[uid] = {"title": msg.text.strip()}
+        user_states[uid] = "REQ_DESC"
+        bot.send_message(uid, "\U0001f4c4 *\u0637\u0644\u0628 \u0645\u0632\u0627\u062f* (2/6)\n\n\u0648\u0635\u0641 \u0627\u0644\u0633\u0644\u0639\u0629 (\u0623\u0648 - \u0644\u0644\u062a\u062e\u0637\u064a):", parse_mode="Markdown")
+        return
+    if st == "REQ_DESC":
+        d = msg.text.strip()
+        req_data[uid]["description"] = "" if d == "-" else d
+        user_states[uid] = "REQ_SELLER"
+        bot.send_message(uid, "\U0001f464 *\u0637\u0644\u0628 \u0645\u0632\u0627\u062f* (3/6)\n\n\u064a\u0648\u0632\u0631 \u0635\u0627\u062d\u0628 \u0627\u0644\u0633\u0644\u0639\u0629 (\u0628\u062f\u0648\u0646 @):", parse_mode="Markdown")
+        return
+    if st == "REQ_SELLER":
+        seller = msg.text.strip().replace("@", "")
+        req_data[uid]["seller_username"] = seller
+        user_states[uid] = "REQ_CURRENCY"
+        mk = InlineKeyboardMarkup()
+        mk.row(InlineKeyboardButton("\U0001f1f8\U0001f1e6 \u0631\u064a\u0627\u0644", callback_data="cur_SAR"), InlineKeyboardButton("\U0001f1fa\U0001f1f8 \u062f\u0648\u0644\u0627\u0631", callback_data="cur_USD"))
+        bot.send_message(uid, "\U0001f4b1 *\u0637\u0644\u0628 \u0645\u0632\u0627\u062f* (4/6)\n\n\u0627\u062e\u062a\u0631 \u0627\u0644\u0639\u0645\u0644\u0629:", reply_markup=mk, parse_mode="Markdown")
+        return
+    if st == "REQ_START_PRICE":
+        try:
+            req_data[uid]["start_price"] = int(msg.text.strip())
+            user_states[uid] = "REQ_INCREMENT"
+            bot.send_message(uid, "\U0001f4c8 *\u0637\u0644\u0628 \u0645\u0632\u0627\u062f* (6/6)\n\n\u0623\u0642\u0644 \u0632\u064a\u0627\u062f\u0629 (\u0645\u062b\u0627\u0644: 10):", parse_mode="Markdown")
+        except Exception:
+            bot.send_message(uid, "\u274c \u0631\u0642\u0645!")
+        return
+    if st == "REQ_INCREMENT":
+        try:
+            req_data[uid]["min_increment"] = int(msg.text.strip())
+            user_states[uid] = "REQ_PHOTO"
+            mk = InlineKeyboardMarkup()
+            mk.row(InlineKeyboardButton("\u23ed\ufe0f \u062a\u062e\u0637\u064a", callback_data="skip_photo"))
+            bot.send_message(uid, "\U0001f4f8 \u0635\u0648\u0631\u0629 \u0627\u0644\u0633\u0644\u0639\u0629 \u0623\u0648 \u062a\u062e\u0637\u064a:", reply_markup=mk)
+        except Exception:
+            bot.send_message(uid, "\u274c \u0631\u0642\u0645!")
+        return
+    if st == "REQ_PHOTO":
+        if msg.photo:
+            req_data[uid]["photo_id"] = msg.photo[-1].file_id
+            submit_request(uid)
+        return
+    # Admin direct auction flow
     if st == "AUC_TITLE" and database.is_admin(uid):
         auc_data[uid] = {"title": msg.text.strip()}
         user_states[uid] = "AUC_DESC"
-        bot.send_message(uid, "\U0001f4c4 *\u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f* (2/6)\n\n\u0648\u0635\u0641 \u0627\u0644\u0633\u0644\u0639\u0629 (\u0623\u0648 - \u0644\u0644\u062a\u062e\u0637\u064a):", parse_mode="Markdown")
+        bot.send_message(uid, "\U0001f4c4 *\u0645\u0632\u0627\u062f* (2/7)\n\n\u0648\u0635\u0641 (\u0623\u0648 -):", parse_mode="Markdown")
         return
     if st == "AUC_DESC" and database.is_admin(uid):
         d = msg.text.strip()
         auc_data[uid]["description"] = "" if d == "-" else d
+        user_states[uid] = "AUC_SELLER"
+        bot.send_message(uid, "\U0001f464 *\u0645\u0632\u0627\u062f* (3/7)\n\n\u064a\u0648\u0632\u0631 \u0627\u0644\u0628\u0627\u0626\u0639 (\u0628\u062f\u0648\u0646 @):", parse_mode="Markdown")
+        return
+    if st == "AUC_SELLER" and database.is_admin(uid):
+        auc_data[uid]["seller_username"] = msg.text.strip().replace("@", "")
         user_states[uid] = "AUC_CURRENCY"
         mk = InlineKeyboardMarkup()
         mk.row(InlineKeyboardButton("\U0001f1f8\U0001f1e6 \u0631\u064a\u0627\u0644", callback_data="cur_SAR"), InlineKeyboardButton("\U0001f1fa\U0001f1f8 \u062f\u0648\u0644\u0627\u0631", callback_data="cur_USD"))
-        bot.send_message(uid, "\U0001f4b1 *\u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f* (3/6)\n\n\u0627\u062e\u062a\u0631 \u0627\u0644\u0639\u0645\u0644\u0629:", reply_markup=mk, parse_mode="Markdown")
+        bot.send_message(uid, "\U0001f4b1 *\u0645\u0632\u0627\u062f* (4/7)\n\n\u0627\u0644\u0639\u0645\u0644\u0629:", reply_markup=mk, parse_mode="Markdown")
         return
     if st == "AUC_START_PRICE" and database.is_admin(uid):
         try:
             auc_data[uid]["start_price"] = int(msg.text.strip())
             user_states[uid] = "AUC_INCREMENT"
-            bot.send_message(uid, "\U0001f4c8 *\u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f* (5/6)\n\n\u0623\u0642\u0644 \u0632\u064a\u0627\u062f\u0629 (\u0645\u062b\u0627\u0644: 10):", parse_mode="Markdown")
+            bot.send_message(uid, "\U0001f4c8 *\u0645\u0632\u0627\u062f* (6/7)\n\n\u0623\u0642\u0644 \u0632\u064a\u0627\u062f\u0629:", parse_mode="Markdown")
         except Exception:
-            bot.send_message(uid, "\u274c \u0623\u0631\u0633\u0644 \u0631\u0642\u0645!")
-            return
+            bot.send_message(uid, "\u274c \u0631\u0642\u0645!")
+        return
     if st == "AUC_INCREMENT" and database.is_admin(uid):
         try:
             auc_data[uid]["min_increment"] = int(msg.text.strip())
             user_states[uid] = "AUC_PHOTO"
             mk = InlineKeyboardMarkup()
             mk.row(InlineKeyboardButton("\u23ed\ufe0f \u062a\u062e\u0637\u064a", callback_data="skip_photo"))
-            bot.send_message(uid, "\U0001f4f8 *\u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f* (6/6)\n\n\u0635\u0648\u0631\u0629 \u0623\u0648 \u062a\u062e\u0637\u064a:", reply_markup=mk, parse_mode="Markdown")
+            bot.send_message(uid, "\U0001f4f8 *\u0645\u0632\u0627\u062f* (7/7)\n\n\u0635\u0648\u0631\u0629 \u0623\u0648 \u062a\u062e\u0637\u064a:", reply_markup=mk, parse_mode="Markdown")
         except Exception:
-            bot.send_message(uid, "\u274c \u0623\u0631\u0633\u0644 \u0631\u0642\u0645!")
-            return
+            bot.send_message(uid, "\u274c \u0631\u0642\u0645!")
+        return
     if st == "AUC_PHOTO" and database.is_admin(uid):
         if msg.photo:
             auc_data[uid]["photo_id"] = msg.photo[-1].file_id
             publish(uid)
-            return
+        return
+    # Custom bid
     if st.startswith("CUSTOM_BID_"):
         aid = int(st.split("_")[2])
         a = database.get_auction(aid)
@@ -427,7 +599,7 @@ def handle_all(msg):
             mn = a['current_price'] + a['min_increment']
             if amt < mn:
                 c = cur(a['currency'])
-                bot.send_message(uid, "\u26a0\ufe0f \u064a\u062c\u0628 " + f"{mn:,}" + "+")
+                bot.send_message(uid, "\u26a0\ufe0f \u064a\u062c\u0628 " + "{:,}".format(mn) + "+")
                 return
             if a['highest_bidder'] == uid:
                 user_states[uid] = "IDLE"
@@ -435,40 +607,54 @@ def handle_all(msg):
             prev = a['highest_bidder']
             database.place_bid(aid, uid, amt)
             c = cur(a['currency'])
-            bot.send_message(uid, "\u2705 \u062a\u0645! *" + f"{amt:,}" + " " + c + "*", parse_mode="Markdown")
+            bot.send_message(uid, "\u2705 *" + "{:,}".format(amt) + " " + c + "*", parse_mode="Markdown")
             user_states[uid] = "IDLE"
             refresh_grp(aid)
-            g = gid()
-            un = msg.from_user.username or msg.from_user.first_name or "user"
-            name = un if len(un) <= 3 else un[:3] + ".."
-            if g:
-                try:
-                    bot.send_message(g, "\U0001f514 *\u0633\u0648\u0645\u0629 \u062c\u062f\u064a\u062f\u0629* | #" + str(aid) + " | *" + f"{amt:,}" + " " + c + "* | " + name, parse_mode="Markdown")
-                except Exception:
-                    pass
             if prev and prev != 0 and prev != uid:
                 try:
-                    bot.send_message(prev, "\U0001f514 \u0643\u0633\u0631 \u0633\u0648\u0645\u062a\u0643 #" + str(aid) + " | *" + f"{amt:,}" + " " + c + "*", parse_mode="Markdown")
+                    bot.send_message(prev, "\U0001f514 \u0643\u0633\u0631 \u0633\u0648\u0645\u062a\u0643 #" + str(aid) + " | *" + "{:,}".format(amt) + " " + c + "*", parse_mode="Markdown")
                 except Exception:
                     pass
             last2 = database.get_last_bids(aid, 2)
             if last2:
-                txt = "\U0001f4cb *\u0622\u062e\u0631 \u0645\u0632\u0627\u064a\u062f\u0627\u062a #" + str(aid) + ":*\n"
+                txt = "\U0001f4cb *#" + str(aid) + ":*\n"
                 for b in last2:
                     bname = database.get_username(b['tg_id'])
-                    txt += "\u2022 @" + bname + " : *" + f"{b['amount']:,}" + " " + c + "*\n"
+                    txt = txt + "\u2022 @" + bname + " : " + "{:,}".format(b['amount']) + " " + c + "\n"
                 try:
                     bot.send_message(OWNER_ID, txt, parse_mode="Markdown")
                 except Exception:
                     pass
         except Exception:
-            bot.send_message(uid, "\u274c \u0623\u0631\u0642\u0627\u0645 \u0641\u0642\u0637!")
+            bot.send_message(uid, "\u274c \u0623\u0631\u0642\u0627\u0645!")
         return
+
+
+def submit_request(uid):
+    d = req_data.get(uid, {})
+    un = d.get("seller_username", "")
+    requester_un = ""
+    try:
+        u = bot.get_chat(uid)
+        requester_un = u.username or u.first_name or "user"
+    except Exception:
+        requester_un = "user"
+    rid = database.create_request(uid, requester_un, un, d.get("title", ""), d.get("description", ""), d.get("photo_id"), d.get("currency", "SAR"), d.get("start_price", 100), d.get("min_increment", 10))
+    pos = database.get_queue_position(rid)
+    total = database.get_pending_count()
+    bot.send_message(uid, "\u2705 *\u062a\u0645 \u0631\u0641\u0639 \u0637\u0644\u0628\u0643!*\n\n\U0001f4cb \u0631\u0642\u0645 \u0627\u0644\u0637\u0644\u0628: #" + str(rid) + "\n\U0001f4ca \u062f\u0648\u0631\u0643: " + str(pos) + " \u0645\u0646 " + str(total) + "\n\n\u0628\u0627\u0646\u062a\u0638\u0627\u0631 \u0627\u0644\u0642\u0628\u0648\u0644", parse_mode="Markdown")
+    try:
+        bot.send_message(OWNER_ID, "\U0001f4e8 *\u0637\u0644\u0628 \u0645\u0632\u0627\u062f \u062c\u062f\u064a\u062f #" + str(rid) + "*\n" + d.get("title", "") + " | @" + un, parse_mode="Markdown")
+    except Exception:
+        pass
+    user_states[uid] = "IDLE"
+    req_data.pop(uid, None)
 
 
 def publish(uid):
     d = auc_data.get(uid, {})
-    aid = database.create_auction(d.get("title", ""), d.get("description", ""), d.get("photo_id"), d.get("currency", "SAR"), d.get("start_price", 100), d.get("min_increment", 10))
+    seller = d.get("seller_username", "")
+    aid = database.create_auction(d.get("title", ""), d.get("description", ""), d.get("photo_id"), d.get("currency", "SAR"), d.get("start_price", 100), d.get("min_increment", 10), seller)
     a = database.get_auction(aid)
     g = gid()
     try:
@@ -477,7 +663,7 @@ def publish(uid):
         else:
             sent = bot.send_message(g, auc_text(a), reply_markup=bid_btns(a), parse_mode="Markdown")
         database.set_auction_group_msg(aid, sent.message_id)
-        bot.send_message(uid, "\u2705 \u062a\u0645 \u0646\u0634\u0631 \u0627\u0644\u0645\u0632\u0627\u062f #" + str(aid) + "!")
+        bot.send_message(uid, "\u2705 \u0645\u0632\u0627\u062f #" + str(aid) + " \u0646\u0632\u0644!")
     except Exception as e:
         bot.send_message(uid, "\u274c " + str(e))
     user_states[uid] = "IDLE"

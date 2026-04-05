@@ -196,6 +196,15 @@ def get_bid_count(auction_id):
     conn.close()
     return res[0] if res else 0
 
+def get_last_bids(auction_id, limit):
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM bids WHERE auction_id = ? ORDER BY id DESC LIMIT ?", (auction_id, limit))
+    results = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in results]
+
 def get_username(tg_id):
     conn = get_connection()
     cursor = conn.cursor()
